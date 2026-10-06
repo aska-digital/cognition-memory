@@ -33,8 +33,14 @@ committed facts under the token budget.
   `cognition_status`, `cognition_dream`)
 - `queue.py` — durable FIFO (retry 1m/5m/30m+jitter, 24h cap, bound 1000
   drop-oldest-with-tombstone, backlog surfacing)
-- `merge.py` — fetch-first push, keep-both, per-entry locks, commit log
+- `merge.py` — fetch-first push, keep-both, per-entry locks, commit log.
+  The on-disk `committed.json` is the sole truth: every push/remove runs
+  refresh → compare → write as ONE transaction under cross-instance/process
+  exclusion with the per-ref lock nested inside.
 - `provenance.py` — mandatory provenance + eviction-preserving archive
 - `budget.py` — prefetch budget + truncation order + marker
 - `tests/` — one acceptance test per contract condition (`python3 -m
-  unittest discover -s tests -t tests` from this directory)
+  unittest discover -s tests -t tests` from this directory). Tests load the
+  real Hermes `agent.memory_provider` base (installed package, `PYTHONPATH`
+  checkout, or `HERMES_AGENT_ROOT`); a missing dependency fails fast with a
+  deterministic error — never a silent stub.
