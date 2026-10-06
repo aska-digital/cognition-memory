@@ -1,0 +1,4 @@
+name: cognition
+version: 0.1.0
+description: "Cognition memory — session-end durable push queue with fetch-first merge, per-entry provenance, and budgeted prefetch."
+requires_env: []
