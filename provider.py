@@ -1,9 +1,9 @@
 """Cognition memory provider — session-end durable memory with fetch-first merge.
 
-Single-active provider with internal multi-repo routing: exactly one provider
-named ``cognition`` is active at a time (``memory.provider=cognition``), and
-facts are routed internally to the configured ``repos`` by ``origin_repo``
-instead of spreading across competing providers.
+Single-active provider: exactly one provider named ``cognition`` is active at
+a time (``memory.provider=cognition``). Facts are regex-extracted from your
+messages at session end, stored in a local SQLite queue, and committed to a
+JSON log under one repo label.
 
 Lifecycle: turns accumulate in memory; :meth:`on_session_end` extracts durable
 facts and enqueues them on the durable push queue (SQLite FIFO). Pushing is
@@ -37,10 +37,6 @@ from .queue import DEFAULT_MAX_ENTRIES, DurablePushQueue
 logger = logging.getLogger(__name__)
 
 PROVIDER_NAME = "cognition"
-
-# Human-readable memory mirrors: when present under the profile home, their
-# content is pinned into recall ahead of everything else.
-MEMORY_MIRRORS = ("MEMORY.md", "USER.md")
 
 # Heuristic lasting-statement signals for session-end extraction. Deliberately
 # narrow: session-end push is fixed and automatic, so extraction must prefer
@@ -225,20 +221,6 @@ class CognitionMemoryProvider(MemoryProvider):
 
     # -- recall ----------------------------------------------------------
 
-    def _mirrors(self) -> List[str]:
-        """Human-readable memory mirrors pinned ahead of extracted facts."""
-        blocks = []
-        for filename in MEMORY_MIRRORS:
-            path = os.path.join(self._hermes_home, filename) if self._hermes_home else filename
-            try:
-                with open(path, "r", encoding="utf-8") as handle:
-                    content = handle.read().strip()
-            except OSError:
-                continue
-            if content:
-                blocks.append("## %s (pinned)\n%s" % (filename, content))
-        return blocks
-
     def _drain_due(self) -> None:
         """Push every due queue entry through fetch-first merge (best-effort)."""
         if self._queue is None or self._log is None:
@@ -263,7 +245,7 @@ class CognitionMemoryProvider(MemoryProvider):
         self._drain_due()  # commit what is due so recall sees fresh state
         snapshot = committed_snapshot(self._log)
         text, kept, dropped = apply_budget(snapshot, self._budget_tokens)
-        blocks = list(self._mirrors())
+        blocks = []
         if kept:
             blocks.append("## Cognition Memory\n" + text)
         pending = self._queue.pending_count() if self._queue else 0
@@ -276,11 +258,11 @@ class CognitionMemoryProvider(MemoryProvider):
     def system_prompt_block(self) -> str:
         lines = [
             "# Cognition Memory",
-            "Active. Single provider; facts route internally to repos: %s." % ", ".join(self._repos),
+            "Active. Single provider; facts are stored under one repo label.",
             "Push is automatic at session end — there is no per-turn save.",
             "Pending means unpushed: extracted at session end, not yet committed.",
-            "Recall blends %s with committed facts under a %d-token prefetch budget."
-            % (" + ".join(MEMORY_MIRRORS), self._budget_tokens),
+            "Recall serves committed facts under a %d-token prefetch budget."
+            % self._budget_tokens,
             "Dream (cognition_dream) is read-only: it synthesizes committed state and "
             "surfaces conflicts; it never writes back.",
         ]

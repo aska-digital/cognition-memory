@@ -1,9 +1,10 @@
-"""Acceptance: single-active provider with internal multi-repo routing.
+"""Acceptance: single-active provider with per-entry repo labels.
 
 Exactly one provider registers under the name 'cognition' (one slot, never a
-provider per repo), while facts route internally to several repos by
-origin_repo. Also pins the user-facing copy contract: push is fixed to session
-end, Pending means unpushed, Dream is read-only.
+provider per repo). Entries carry an ``origin_repo`` provenance label the log
+can filter by, but the provider stores every fact under one repo label.
+Also pins the user-facing copy contract: push is fixed to session end,
+Pending means unpushed, Dream is read-only.
 """
 
 import os
@@ -47,7 +48,7 @@ class SingleActiveRoutingTest(unittest.TestCase):
         self.assertEqual(len(ctx.providers), 1)
         self.assertEqual(ctx.providers[0].name, "cognition")
 
-    def test_one_provider_routes_many_repos_internally(self):
+    def test_one_provider_labels_entries_per_repo(self):
         home = tempfile.mkdtemp(prefix="cog-home-")
         provider = make_provider(home, repos=["alpha", "beta", "gamma"])
         log = provider._log
@@ -64,7 +65,7 @@ class SingleActiveRoutingTest(unittest.TestCase):
             }
             status, _ = merge_mod.fetch_first_push(log, entry, None, now=base_time)
             self.assertEqual(status, "applied")
-        # One provider instance serves all three repos — no provider per repo.
+        # One provider instance serves all three labels — no provider per repo.
         self.assertEqual(len(log.entries_for_repo("alpha")), 2)
         self.assertEqual(len(log.entries_for_repo("beta")), 1)
         self.assertEqual(len(log.entries_for_repo("gamma")), 1)

@@ -1,14 +1,16 @@
 # Cognition memory provider
 
-Session-end durable memory for Hermes: one active provider, facts routed
-internally to configured repos.
+Session-end durable memory for Hermes: one active provider. Facts are
+regex-extracted from your messages at session end, stored in a local SQLite
+queue and JSON log under one repo label.
 
 - **Push is fixed to session end.** Turns accumulate; `on_session_end`
   extracts durable facts onto a SQLite FIFO queue. `sync_turn` persists
   nothing. `Pending` means unpushed (extracted, not yet committed).
 - **Fetch-first merge, keep-both conflicts.** Push compares against committed
   state first; a changed base keeps both versions under deterministic refs
-  (`cog-{sessionId}-{seq}`, conflicts `{ref}-conflict-{unix_ts}`).
+  (`cog-{sessionId}-{seq}`, conflicts `{ref}-conflict-{unix_ts}`). Exact
+  redelivery of an already-committed entry is idempotent.
 - **Mandatory provenance.** Every entry carries `source_session`, `author`,
   `created_at`, `origin_repo`, `trace_id`. Eviction archives first
   (JSONL, never deleted by lifecycle).

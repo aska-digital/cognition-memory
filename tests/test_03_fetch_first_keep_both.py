@@ -1,7 +1,8 @@
 """Acceptance: fetch-first push with keep-both conflicts.
 
 Push fetches committed state before writing; an unchanged base applies, a
-changed base keeps both versions. Refs are deterministic:
+changed base keeps both versions, and exact redelivery of an already
+committed entry is idempotent. Refs are deterministic:
 ``cog-{sessionId}-{seq}`` for pushes, ``{ref}-conflict-{unix_ts}`` for the
 conflicting side.
 """
@@ -51,6 +52,18 @@ class FetchFirstKeepBothTest(unittest.TestCase):
         status, landed = merge_mod.fetch_first_push(log, entry2, committed, now=101.0)
         self.assertEqual((status, landed), ("applied", "cog-s-1"))
         self.assertEqual(log.get("cog-s-1")["content"], "v2")
+
+    def test_exact_redelivery_after_failed_ack_is_idempotent(self):
+        log = CommitLog(os.path.join(tempfile.mkdtemp(prefix="cog-log-"), "c.json"))
+        entry = {"ref": "cog-s-ack-1", "content": "fact", "salience": 0.5,
+                 "provenance": prov()}
+        status, landed = merge_mod.fetch_first_push(log, entry, None, now=100.0)
+        self.assertEqual((status, landed), ("applied", "cog-s-ack-1"))
+        # The ack failed, so the queue redelivers the identical entry: it must
+        # report applied on the same ref, not a keep-both duplicate.
+        status, landed = merge_mod.fetch_first_push(log, dict(entry), None, now=101.0)
+        self.assertEqual((status, landed), ("applied", "cog-s-ack-1"))
+        self.assertEqual(log.refs(), ["cog-s-ack-1"])
 
     def test_stale_base_keeps_both_with_conflict_ref(self):
         log = CommitLog(os.path.join(tempfile.mkdtemp(prefix="cog-log-"), "c.json"))

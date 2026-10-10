@@ -1,4 +1,4 @@
 name: cognition
-version: 0.1.0
-description: "Cognition memory — session-end durable push queue with fetch-first merge, per-entry provenance, and budgeted prefetch."
+version: 0.1.1
+description: "Cognition memory — facts regex-extracted from your messages at session end, stored in a local SQLite queue and JSON log under one repo label, with fetch-first merge, per-entry provenance, and budgeted prefetch."
 requires_env: []

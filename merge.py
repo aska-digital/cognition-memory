@@ -231,9 +231,10 @@ def fetch_first_push(
 
     ``base`` is the committed state the writer saw when it built the entry
     (None for a brand-new ref). Returns ``(status, ref)`` where status is
-    ``"applied"`` (fast path: base still matches committed) or ``"conflict"``
-    (keep-both: existing entry untouched, incoming stored under a conflict
-    ref). The returned ref is where the incoming content landed.
+    ``"applied"`` (fast path: base still matches committed, or the exact
+    entry is already committed — redelivery after a failed ack) or
+    ``"conflict"`` (keep-both: existing entry untouched, incoming stored under
+    a conflict ref). The returned ref is where the incoming content landed.
 
     Runs refresh → compare → write as ONE transaction: disk is re-read under
     the store exclusion, compared, and written before the exclusion is
@@ -250,6 +251,11 @@ def fetch_first_push(
                 committed = copy.deepcopy(log._entries.get(ref))
                 if committed is None or committed == base:
                     log._apply_locked(entry)
+                    return ("applied", ref)
+                if committed == entry:
+                    # Redelivered after a failed ack: the entry is already
+                    # committed, so report applied instead of keep-both
+                    # duplicating it under a conflict ref.
                     return ("applied", ref)
                 incoming = copy.deepcopy(entry)
                 target = conflict_ref(ref, now)
