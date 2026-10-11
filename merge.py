@@ -184,7 +184,7 @@ class CommitLog:
                 return sorted(self._entries)
 
     def entries_for_repo(self, origin_repo: str) -> List[Dict[str, Any]]:
-        """Committed entries routed to one internal repo (multi-repo routing)."""
+        """Committed entries whose provenance names ``origin_repo``."""
         with _store_exclusion(self._path):
             with self._lock:
                 self._reload_locked()

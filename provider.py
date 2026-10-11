@@ -445,7 +445,10 @@ class CognitionMemoryProvider(MemoryProvider):
             pass
 
     def archive_and_evict(self, ref: str, reason: str) -> bool:
-        """Archive a committed entry, then evict it (archive always first)."""
+        """Archive a committed entry, then evict it (archive always first).
+
+        Public API only: no lifecycle hook calls this in the current version.
+        """
         if self._log is None:
             return False
         base = self._hermes_home or "."
