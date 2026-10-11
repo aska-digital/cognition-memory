@@ -12,8 +12,9 @@ queue and JSON log under one repo label.
   (`cog-{sessionId}-{seq}`, conflicts `{ref}-conflict-{unix_ts}`). Exact
   redelivery of an already-committed entry is idempotent.
 - **Mandatory provenance.** Every entry carries `source_session`, `author`,
-  `created_at`, `origin_repo`, `trace_id`. Eviction archives first
-  (JSONL, never deleted by lifecycle).
+  `created_at`, `origin_repo`, `trace_id`. `archive_and_evict` archives an
+  entry to JSONL before removing it; nothing in this version calls it
+  automatically.
 - **Single-writer lock per entry id.** Dream reads committed state only.
 - **Prefetch budget** (default 8000 tokens). Truncation order: system-pin >
   provenance > recency > salience, always with a marker.
@@ -25,8 +26,8 @@ Config (DRAFT key names): `memory.provider=cognition` with
 author identity last — the configured author is authoritative for provenance;
 empty falls back to host `git config user.name`.
 
-Recall blends `MEMORY.md` + `USER.md` mirrors (when present, pinned) with
-committed facts under the token budget.
+Recall injects committed facts under the token budget. Built-in memory
+(`MEMORY.md`, `USER.md`) is left to Hermes core and is not mirrored here.
 
 ## Layout
 
